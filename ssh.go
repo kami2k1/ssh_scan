@@ -11,19 +11,15 @@ import (
 )
 
 var (
-    users     = []string{"root", "admin", "user", "test", "ubuntu", "ec2-user", "vagrant","centos"}
+    users     = []string{"root","ubuntu", "centos"}
     passwords = []string{
-        "password", "123456", "123456789", "12345678", "1234567", "12345", "1234", "1234567890",
-        "qwerty", "abc123", "111111", "123123", "admin", "admin123", "admin@123",
-        "root", "toor", "user", "default", "ubuntu", "raspberry",
-        "letmein", "welcome", "password1", "passw0rd", "P@ssw0rd", "changeme", "test123",
-        "1q2w3e4r", "1qaz2wsx", "zaq12wsx", "qazwsx", "qwertyuiop", "asdfghjkl",
-        "loveyou", "iloveyou", "dragon", "superman", "batman", "pokemon", "football",
-        "monkey", "shadow", "sunshine", "princess", "trustno1", "master", "secret",
-        "hello", "freedom", "whatever", "696969", "killer", "fuckyou", "letmein",
-        "starwars", "ninja", "hottie", "flower", "cheese", "asdfgh", "pepper", "michael",
-        "jordan", "hunter", "buster", "thomas", "maggie", "daniel", "jessica",
-        "abc123456", "qwerty123", "qwe123", "1q2w3e", "mypass123", "qweasdzxc", "mk123@", "saigon123",
+        "password",  "123456789", "12345678", "1234567",   "1234567890",
+         "admin", "admin123", "admin@123",
+         "ubuntu", 
+      "test123",
+        
+        
+        
     }
 
     syncWait = sync.WaitGroup{}
