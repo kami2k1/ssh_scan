@@ -15,10 +15,12 @@ import (
 )
 
 const (
-	maxConcurrentConnections = 500
-	connectionTimeout        = 10 * time.Second
-	sshCommandTimeout        = 5 * time.Second
+	maxConcurrentConnections = 100  // Giảm từ 500 xuống 100
+	connectionTimeout        = 8 * time.Second  // Giảm timeout
+	sshCommandTimeout        = 3 * time.Second  // Giảm command timeout
 	outputFileName           = "data.txt"
+	maxTargetsBuffer         = 50   // Giới hạn buffer targets
+	processDelay            = 50 * time.Millisecond // Delay giữa các lần xử lý
 )
 
 var (
@@ -211,9 +213,20 @@ func processTargets(ctx context.Context, targets <-chan string, results chan<- *
 		case <-ctx.Done():
 			return
 		default:
-		} // Thử tất cả các tổ hợp tài khoản cho target này
+		}
+		
+		// Thêm delay nhỏ để tránh overwhelm
+		time.Sleep(processDelay)
+		
+		// Thử tất cả các tổ hợp tài khoản cho target này
 		for _, user := range users {
 			for _, password := range passwords {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				
 				result := client.TryLogin(ctx, target, user, password)
 
 				select {
@@ -225,6 +238,9 @@ func processTargets(ctx context.Context, targets <-chan string, results chan<- *
 				if result.Success {
 					goto nextTarget
 				}
+				
+				// Delay nhỏ giữa các attempts
+				time.Sleep(10 * time.Millisecond)
 			}
 		}
 	nextTarget:
@@ -267,13 +283,12 @@ func main() {
 	// Tạo context để shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// Tạo channels với buffer nhỏ hơn
+	targets := make(chan string, maxTargetsBuffer)
+	results := make(chan *LoginResult, 50)
 
-	// Tạo channels
-	targets := make(chan string, 100)
-	results := make(chan *LoginResult, 100)
-
-	// Khởi động worker goroutines
-	const numWorkers = 10
+	// Giảm số workers để tránh overwhelm
+	const numWorkers = 5  // Giảm từ 10 xuống 5
 	var wg sync.WaitGroup
 
 	for i := 0; i < numWorkers; i++ {
@@ -288,9 +303,8 @@ func main() {
 			_ = result
 		}
 	}()
-
-	// Khởi động statistics printer
-	statsTicker := time.NewTicker(30 * time.Second)
+	// Khởi động statistics printer với interval lớn hơn
+	statsTicker := time.NewTicker(60 * time.Second)  // Tăng từ 30s lên 60s
 	defer statsTicker.Stop()
 	go func() {
 		for {
@@ -306,9 +320,10 @@ func main() {
 	fmt.Println("SSH Scanner đã khởi động. Đang đọc targets từ stdin...")
 	fmt.Printf("Số kết nối đồng thời tối đa: %d\n", maxConcurrentConnections)
 	fmt.Printf("Timeout kết nối: %v\n", connectionTimeout)
-	fmt.Println(strings.Repeat("-", 50)) // Đọc targets từ stdin
+	fmt.Println(strings.Repeat("-", 50))	// Đọc targets từ stdin với rate limiting
 	scanner := bufio.NewScanner(os.Stdin)
 	targetCount := 0
+	lastReportTime := time.Now()
 
 readLoop:
 	for scanner.Scan() {
@@ -327,11 +342,23 @@ readLoop:
 		select {
 		case targets <- fullTarget:
 			targetCount++
-			if targetCount%100 == 0 {
+			// Báo cáo tiến độ mỗi 50 targets thay vì 100
+			if targetCount%50 == 0 && time.Since(lastReportTime) > 5*time.Second {
 				fmt.Printf("Đã xếp hàng %d targets...\n", targetCount)
+				lastReportTime = time.Now()
 			}
 		case <-ctx.Done():
 			break readLoop
+		case <-time.After(100 * time.Millisecond):
+			// Timeout nhỏ để tránh block quá lâu
+			fmt.Printf("Buffer đầy, chờ xử lý... (đã xếp hàng: %d)\n", targetCount)
+			time.Sleep(200 * time.Millisecond)
+			continue readLoop
+		}
+		
+		// Thêm delay nhỏ giữa việc đọc targets
+		if targetCount%10 == 0 {
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
