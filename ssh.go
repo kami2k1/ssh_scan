@@ -28,7 +28,7 @@ var (
 	failedAttempts   int64
 
 	// Predefined credentials
-	users     = []string{"root", "ubuntu", "centos", "admin", "administrator"}
+	users     = []string{"root", "ubuntu", "centos"}
 	passwords = []string{
 		"password", "123456789", "12345678", "1234567", "1234567890",
 		"admin", "admin123", "admin@123", "root", "ubuntu", "centos",
